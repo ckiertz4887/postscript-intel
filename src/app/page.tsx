@@ -134,6 +134,15 @@ function StoreCard({ store }: { store: StoreAnalysis }) {
   const [expanded, setExpanded] = useState(false);
 
   if (store.status === "error") {
+    const errorLabels: Record<string, string> = {
+      not_found: "404 Not Found",
+      blocked: "Access Blocked",
+      timeout: "Timed Out",
+      dns_failure: "Domain Not Found",
+      unknown: "Error",
+    };
+    const badgeLabel = errorLabels[store.errorCategory || "unknown"] || "Error";
+
     return (
       <div className="bg-white rounded-lg border border-red-200 p-5 shadow-sm">
         <div className="flex items-start justify-between">
@@ -142,9 +151,14 @@ function StoreCard({ store }: { store: StoreAnalysis }) {
             <p className="text-red-600 text-sm mt-1">
               ⚠ Analysis failed: {store.error}
             </p>
+            {store.errorSuggestion && (
+              <div className="mt-2 bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-gray-600">
+                💡 {store.errorSuggestion}
+              </div>
+            )}
           </div>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-            Error
+            {badgeLabel}
           </span>
         </div>
       </div>
