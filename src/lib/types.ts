@@ -9,11 +9,15 @@ export interface DetectedTool {
   evidence: string; // What we found that told us this tool is present
 }
 
+export type ErrorCategory = "not_found" | "blocked" | "timeout" | "dns_failure" | "unknown";
+
 /** The full analysis result for one e-commerce store */
 export interface StoreAnalysis {
   url: string;
   status: "success" | "partial" | "error";
   error?: string;
+  errorCategory?: ErrorCategory;
+  errorSuggestion?: string;
 
   // Core detections
   platform: DetectedTool | null;

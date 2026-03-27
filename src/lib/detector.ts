@@ -12,7 +12,15 @@
  */
 
 import * as cheerio from "cheerio";
-import { DetectedTool, StoreAnalysis } from "./types";
+import { DetectedTool, ErrorCategory, StoreAnalysis } from "./types";
+
+class FetchError extends Error {
+  category: ErrorCategory;
+  constructor(message: string, category: ErrorCategory) {
+    super(message);
+    this.category = category;
+  }
+}
 
 // ── Detection Pattern Definitions ──────────────────────────────────
 // Each pattern has: tool name, what to look for, and where to look.
@@ -272,10 +280,27 @@ async function fetchHTML(url: string): Promise<string> {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (response.status === 404) {
+        throw new FetchError(`HTTP 404: ${response.statusText}`, "not_found");
+      }
+      if (response.status === 403 || response.status === 429) {
+        throw new FetchError(`HTTP ${response.status}: ${response.statusText}`, "blocked");
+      }
+      throw new FetchError(`HTTP ${response.status}: ${response.statusText}`, "unknown");
     }
 
     return await response.text();
+  } catch (error) {
+    if (error instanceof FetchError) throw error;
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        throw new FetchError("Request timed out", "timeout");
+      }
+      if (/ENOTFOUND|ECONNREFUSED|fetch failed/i.test(error.message)) {
+        throw new FetchError(error.message, "dns_failure");
+      }
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -456,7 +481,7 @@ function extractStoreName(html: string, url: string): string | null {
 
   // Try og:site_name first (most reliable)
   const ogSiteName = $('meta[property="og:site_name"]').attr("content");
-  if (ogSiteName) return ogSiteName.trim();
+  if (ogSiteName && ogSiteName.trim().length < 80) return ogSiteName.trim();
 
   // Try the <title> tag, cleaned up
   const title = $("title").text().trim();
@@ -531,6 +556,29 @@ function calculatePostscriptFit(analysis: {
   return { score, reasons };
 }
 
+// ── Error Suggestion Builder ──────────────────────────────────────
+
+function buildSuggestion(category: ErrorCategory, url: string): string {
+  let domain: string;
+  try {
+    domain = new URL(url).hostname.replace("www.", "");
+  } catch {
+    domain = url;
+  }
+
+  switch (category) {
+    case "not_found":
+    case "dns_failure":
+      return `Try searching for "${domain}" — some brands use prefixes like "drink" or "eat" (e.g., drink${domain}).`;
+    case "blocked":
+      return `This site blocks automated requests. Puppeteer-based scraping is on the roadmap as a workaround.`;
+    case "timeout":
+      return `The request timed out. Try again — the site may have been temporarily slow.`;
+    default:
+      return `An unexpected error occurred. Try again or verify the URL is correct.`;
+  }
+}
+
 // ── Main Analysis Function ─────────────────────────────────────────
 
 export async function analyzeStore(url: string): Promise<StoreAnalysis> {
@@ -575,10 +623,16 @@ export async function analyzeStore(url: string): Promise<StoreAnalysis> {
       scrapedAt: new Date().toISOString(),
     };
   } catch (error) {
+    const category: ErrorCategory =
+      error instanceof FetchError ? error.category : "unknown";
+    const suggestion = buildSuggestion(category, url);
+
     return {
       url,
       status: "error",
       error: error instanceof Error ? error.message : "Unknown error",
+      errorCategory: category,
+      errorSuggestion: suggestion,
       platform: null,
       emailMarketing: [],
       smsMarketing: [],

@@ -1,0 +1,45 @@
+# CodeRabbit AI Code Review Configuration
+#
+# CodeRabbit is a free AI agent that reviews every PR automatically.
+# It reads the code diff, leaves review comments, and can catch bugs,
+# security issues, and style problems — like having a senior engineer
+# review your PRs 24/7.
+#
+# Setup: Install the CodeRabbit GitHub App on your repo:
+# https://github.com/apps/coderabbitai
+# Once installed, it automatically reviews all new PRs.
+
+language: en-US
+reviews:
+  # Auto-review every PR
+  auto_review:
+    enabled: true
+    # Review even draft PRs (we want feedback early)
+    drafts: true
+
+  # What to focus on during review
+  profile: assertive
+
+  # Specific review instructions for this project
+  path_instructions:
+    - path: "src/lib/detector.ts"
+      instructions: |
+        This is the core detection engine. Pay special attention to:
+        - Regex patterns that could cause ReDoS (catastrophic backtracking)
+        - Error handling in fetch calls
+        - Edge cases in URL parsing
+    - path: "src/app/api/**"
+      instructions: |
+        These are API routes handling user input. Check for:
+        - Input validation and sanitization
+        - Rate limiting considerations
+        - Error responses that don't leak internal details
+    - path: "src/app/**/*.tsx"
+      instructions: |
+        Frontend components. Check for:
+        - XSS vulnerabilities in rendered content
+        - Proper error boundary handling
+        - Accessibility basics (alt text, semantic HTML)
+
+chat:
+  auto_reply: true
