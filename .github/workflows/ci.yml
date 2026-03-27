@@ -1,0 +1,77 @@
+# CI Pipeline — runs on every pull request and push to main
+#
+# This is a GitHub Actions workflow. Think of it as an automated
+# checklist that runs every time code changes. If any step fails,
+# the PR gets a red X and you know something's wrong before merging.
+#
+# What it checks:
+# 1. TypeScript types are correct (no type errors)
+# 2. Code follows lint rules (consistent style)
+# 3. The app builds successfully (nothing broken)
+# 4. Dependencies have no known security vulnerabilities
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Quality Checks ─────────────────────────────────────────────
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  # ── Security Scan ──────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm audit checks all dependencies for known vulnerabilities
+      # --audit-level=high means we only fail on high/critical issues
+      # (low/moderate issues are logged but don't block the PR)
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      # Check for accidentally committed secrets (API keys, tokens, etc.)
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
