@@ -476,28 +476,21 @@ function analyzeHTML(html: string): {
 
 // ── Extract store name from HTML ───────────────────────────────────
 
-function extractStoreName(html: string, url: string): string | null {
+function extractStoreName(html: string): string | null {
   const $ = cheerio.load(html);
 
-  // Try og:site_name first (most reliable)
-  const ogSiteName = $('meta[property="og:site_name"]').attr("content");
-  if (ogSiteName && ogSiteName.trim().length < 80) return ogSiteName.trim();
+  // Primary: og:site_name (most reliable)
+  const ogSiteName = $('meta[property="og:site_name"]').attr("content")?.trim();
+  if (ogSiteName) return ogSiteName;
 
-  // Try the <title> tag, cleaned up
+  // Fallback: <title> tag, stripped of tagline suffixes
   const title = $("title").text().trim();
   if (title) {
-    // Often formatted as "Store Name – Some tagline" or "Store Name | Products"
     const cleaned = title.split(/[|\-–—]/)[0].trim();
     if (cleaned) return cleaned;
   }
 
-  // Fall back to domain name
-  try {
-    const hostname = new URL(url).hostname.replace("www.", "");
-    return hostname.split(".")[0];
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 // ── Postscript Fit Scoring ─────────────────────────────────────────
@@ -600,7 +593,7 @@ export async function analyzeStore(url: string): Promise<StoreAnalysis> {
     const { products, industry } = await detectProducts(url, html, isShopify);
 
     // Step 4: Extract store name
-    const storeName = extractStoreName(html, url);
+    const storeName = extractStoreName(html);
 
     // Step 5: Calculate Postscript fit
     const postscriptFit = calculatePostscriptFit({
