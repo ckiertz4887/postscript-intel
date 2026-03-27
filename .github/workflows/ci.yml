@@ -35,7 +35,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Type check
         run: npm run type-check
@@ -62,7 +62,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       # npm audit checks all dependencies for known vulnerabilities
       # --audit-level=high means we only fail on high/critical issues
